@@ -1,23 +1,22 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
-import json
 
 # ---------------------------
 # Firebase Initialization
 # ---------------------------
 if not firebase_admin._apps:
-    if "firebase" in st.secrets:
+    try:
         cred = credentials.Certificate(dict(st.secrets["firebase"]))
-    else:
-        cred = credentials.Certificate("firebase_key.json")
-    
-    firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        st.error("🔥 Firebase not initialized. Check your secrets.toml or Streamlit secrets.")
+        st.stop()
 
 db = firestore.client()
 
 # ---------------------------
-# UI
+# UI CONFIG
 # ---------------------------
 st.set_page_config(page_title="SaaS App", layout="centered")
 
@@ -37,12 +36,15 @@ if menu == "Submit Form":
 
     if st.button("Submit"):
         if name and email:
-            db.collection("users").add({
-                "name": name,
-                "email": email,
-                "feedback": feedback
-            })
-            st.success("✅ Data stored successfully!")
+            try:
+                db.collection("users").add({
+                    "name": name,
+                    "email": email,
+                    "feedback": feedback
+                })
+                st.success("✅ Data stored successfully!")
+            except Exception as e:
+                st.error(f"Error storing data: {e}")
         else:
             st.error("⚠️ Please fill required fields")
 
@@ -52,13 +54,17 @@ if menu == "Submit Form":
 elif menu == "View Data":
     st.subheader("📊 Stored Entries")
 
-    docs = db.collection("users").stream()
+    try:
+        docs = db.collection("users").stream()
 
-    data = []
-    for doc in docs:
-        data.append(doc.to_dict())
+        data = []
+        for doc in docs:
+            data.append(doc.to_dict())
 
-    if data:
-        st.dataframe(data)
-    else:
-        st.info("No data yet")
+        if data:
+            st.dataframe(data)
+        else:
+            st.info("No data yet")
+
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
